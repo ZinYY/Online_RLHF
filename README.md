@@ -39,7 +39,7 @@ rlhf_recipe = ["SFT"] + [["RM", "PPO", "generate", "evaluate", "rewarding", "gen
 pip install -r requirements.txt
 ```
 
-### For the Offline Stage:
+### For the Passive Stage:
 
 1. you should first run SFT to get the initial reward model's checkpoint,
 
@@ -70,7 +70,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 27010 --module openrlhf.c
     --wandb_project openrlhf_sft_ultraFB
 ```
 
-2. then run the offline training pipeline:
+2. then run the passive training pipeline:
 
 ```bash
 # Train Reward Model (SGD):
@@ -140,13 +140,13 @@ deepspeed --include=localhost:$gpu_nodes --master_port 29319 --module openrlhf.c
  --wandb_run_name llama3-8b-rm-head-hvp
 ```
 
-### For the Deployment Stage:
+### For the online RLHF with deployment-time adaptation:
 
 1. Cook your favorite recipe style, then run:
 
 ```bash
-# Cook with PPO + HVP
-python pipeline/Ultrafeedback/llama/online_rlhf_pipeline_ultrafeedback_llama.py \
+# Cook with PPO + OMD (hvp)
+python pipeline/Ultrafeedback/llama/online_deployment_ultrafeedback_llama.py \
     --method ppo \
     --rm_type hvp \
     --rm_strategy best_worst \
