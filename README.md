@@ -1,6 +1,6 @@
 # Online RLHF Pipeline: A Pytorch Implementation
 
-A PyTorch implementation of the paper "Provably Efficient RLHF Pipeline: A Unified View from Contextual Bandits". This repository provides a flexible and modular approach to Reinforcement Learning from Human Feedback (RLHF).
+A PyTorch implementation of the paper "Provably Efficient Online RLHF with One-Pass Reward Modeling". This repository provides a flexible and modular approach to Online Reinforcement Learning from Human Feedback (Online RLHF).
 
 This repository is forked from [OpenRLHF](https://github.com/OpenRLHF/OpenRLHF) repo, and modified to implement our Online RLHF Pipeline.
 
@@ -146,7 +146,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 29319 --module openrlhf.c
 
 ```bash
 # Cook with PPO + HVP
-python pipeline/online_rlhf_pipeline_ultrafeedback_llama.py \
+python pipeline/Ultrafeedback/llama/online_rlhf_pipeline_ultrafeedback_llama.py \
     --method ppo \
     --rm_type hvp \
     --rm_strategy best_worst \
@@ -164,7 +164,7 @@ python pipeline/online_rlhf_pipeline_ultrafeedback_llama.py \
 │ ├── trainer/ # Training implementations
 │ └── utils/ # Utility functions
 ├── pipeline/
-│ └── online_rlhf_pipeline_ultrafeedback_llama.py # Main RLHF pipeline
+│ └── Different scripts of RLHF pipeline
 ├── plot/ # Visualization tools
 └── requirements.txt # Dependencies
 
