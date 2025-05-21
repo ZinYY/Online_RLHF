@@ -103,6 +103,8 @@ class RewardModelTrainer(ABC):
         self.margin_loss = self.strategy.args.margin_loss
         self.compute_fp32_loss = self.strategy.args.compute_fp32_loss
         
+        self.max_kappa = 0.0  # Track maximum kappa value
+        self.kappas = []  # Store kappa values for each step
         
         # wandb/tensorboard setting
         self._wandb = None
@@ -257,6 +259,11 @@ class RewardModelTrainer(ABC):
                     chosen_reward = chosen_reward.float()
                     reject_reward = reject_reward.float()
                 
+                # Compute kappa
+                kappa = self.compute_kappa(chosen_reward, reject_reward)
+                self.max_kappa = max(self.max_kappa, kappa)
+                self.kappas.append(kappa)
+
                 preference_loss = self.loss_fn(chosen_reward, reject_reward, margin)
                 preference_loss_item = preference_loss.item()
                 # mixtral
@@ -365,6 +372,8 @@ class RewardModelTrainer(ABC):
                     "acc_mean"     : acc_mean,
                     "lr"           : self.scheduler.get_last_lr()[0],
                     "current_damping": current_damping,
+                    "kappa"    : kappa,
+                    "max_kappa": self.max_kappa,
                 }
                 # if self.aux_loss:
                 #     logs_dict["aux_loss"] = aux_loss.item()
@@ -377,6 +386,10 @@ class RewardModelTrainer(ABC):
                     global_step = step // self.strategy.accumulated_gradient
                     client_states = {"consumed_samples": global_step * args.train_batch_size}
                     self.save_logs_and_checkpoints(args, global_step, step_bar, logs_dict, client_states)
+                    
+                    # 打印最大kappa
+                    if self.strategy.is_rank_0():
+                        print(f"\033[94mMax κ: {self.max_kappa:.4f}\033[0m")
                 
                 step += 1
                 if step % 10 == 0:
@@ -576,3 +589,18 @@ class RewardModelTrainer(ABC):
         
         else:
             return base_damping
+    
+    def compute_kappa(self, chosen_reward, reject_reward):
+        """Compute non-linearity coefficient kappa."""
+        # Get the logits difference
+        logits_diff = chosen_reward - reject_reward
+        
+        # Compute sigmoid
+        probs = torch.sigmoid(logits_diff)
+        
+        # Compute sigmoid derivative: σ'(w) = σ(w)(1-σ(w))
+        sigmoid_derivative = probs * (1 - probs)
+        
+        # Compute kappa as 1 / min(σ'(w))
+        kappa = 1.0 / (torch.min(sigmoid_derivative).item() + 1e-3)
+        return kappa

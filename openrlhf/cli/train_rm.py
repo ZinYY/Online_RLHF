@@ -44,7 +44,7 @@ def train(args):
     strategy.print(model)
 
     # configure optimizer
-    optim = strategy.create_optimizer(model, lr=args.learning_rate, betas=args.adam_betas, weight_decay=args.l2)
+    optim = strategy.create_sgd_optimizer(model, lr=args.learning_rate)
 
     # prepare for data and dataset
     train_data, eval_data = blending_datasets(
@@ -96,11 +96,10 @@ def train(args):
     max_steps = math.ceil(args.max_epochs * num_update_steps_per_epoch)
 
     scheduler = get_scheduler(
-        "cosine_with_min_lr",
+        "constant",
         optim,
-        num_warmup_steps=math.ceil(max_steps * args.lr_warmup_ratio),
+        num_warmup_steps=0,
         num_training_steps=max_steps,
-        scheduler_specific_kwargs={"min_lr": args.learning_rate * 0.1},
     )
 
     # gradient_checkpointing

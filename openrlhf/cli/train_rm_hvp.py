@@ -97,11 +97,10 @@ def train(args):
     
     # scheduler
     scheduler = get_scheduler(
-        "cosine_with_min_lr",
+        "constant",
         optim,
-        num_warmup_steps=math.ceil(max_steps * args.lr_warmup_ratio),
+        num_warmup_steps=0,
         num_training_steps=max_steps,
-        scheduler_specific_kwargs={"min_lr": args.learning_rate * 0.1},
     )
     
     # gradient_checkpointing
@@ -140,6 +139,8 @@ def train(args):
         loss=args.loss,
         cg_damping=args.damping,
         cg_max_steps=args.num_cg_steps,
+        damping_strategy=args.damping_strategy,
+        damping_growth_rate=args.damping_growth_rate,
         max_train_iter=args.max_train_iter,
     )
     
@@ -253,9 +254,12 @@ if __name__ == "__main__":
     # HVP parameters
     parser.add_argument("--use_hvp", action="store_true", default=False, help="Use HVP update")
     parser.add_argument("--use_optimizer", action="store_true", default=False, help="Use Adam optimizer to update")
-    parser.add_argument("--damping", type=float, default=0.01, help="Damping coefficient for HVP")
-    parser.add_argument("--num_cg_steps", type=int, default=10, help="Number of conjugate gradient steps")
-    
+    parser.add_argument("--damping", type=float, default=0.8, help="Base damping coefficient for HVP")
+    parser.add_argument("--damping_strategy", type=str, choices=["", "constant", "log", "linear", "square", "cosine"], default="linear",
+                        help="Strategy for selecting damping coefficient")
+    parser.add_argument("--damping_growth_rate", type=float, default=100.0,
+                        help="Growth rate for damping strategies.")
+    parser.add_argument("--num_cg_steps", type=int, default=3, help="Number of conjugate gradient steps")
     # Add this to the argument parser section
     parser.add_argument("--verbose", action="store_true", default=False, help="Enable verbose logging")
     parser.add_argument("--max_train_iter", type=int, default=-1, help="Maximum number of training iterations")

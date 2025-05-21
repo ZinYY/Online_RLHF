@@ -26,7 +26,9 @@ class RewardModelTrainer(ABC):
         max_epochs: int = 2,
         loss="sigmoid",
         cg_max_steps: int = 3,
-        cg_damping: float = 0.1, 
+        cg_damping: float = 0.1,
+        damping_strategy: str = "",
+        damping_growth_rate: float = 5.0,
         max_train_iter: int = -1
     ) -> None:
         super().__init__()
@@ -45,6 +47,15 @@ class RewardModelTrainer(ABC):
         
         self.cg_max_steps = cg_max_steps
         self.cg_damping = cg_damping
+        self.damping_strategy = damping_strategy
+        self.damping_growth_rate = damping_growth_rate
+        self.total_steps = 0
+        
+        if max_train_iter > 0:
+            self.total_T = max_train_iter
+        else:
+            self.total_T = len(train_dataloader) * max_epochs
+        
         
         if loss == "sigmoid":
             self.loss_fn = PairWiseLoss()
@@ -87,16 +98,17 @@ class RewardModelTrainer(ABC):
     
     def hessian_vector_product(self, params: List[nn.Parameter], loss: torch.Tensor,
                                flat_vector: torch.Tensor, flat_grad) -> torch.Tensor:
-        
+        # 再次使用 DeepSpeed ZeRO 收集参数
         with deepspeed.zero.GatheredParameters(params, modifier_rank=0):
             with torch.enable_grad():
-                
+               
                 grad_vector_prod = torch.sum(flat_grad * flat_vector)
                 
-                
+   
                 hvp = torch.autograd.grad(grad_vector_prod, params, retain_graph=True)
                 flat_hvp = torch.cat([g.reshape(-1).detach().clone() for g in hvp if g is not None])
         
+        # 确保所有中间结果都被清理
         del flat_grad, grad_vector_prod, hvp
         for param in params:
             if param.grad is not None:
@@ -177,6 +189,7 @@ class RewardModelTrainer(ABC):
             loss_mean = 0
             for data in self.train_dataloader:
                 total_iter += 1
+                self.total_steps = total_iter
                 if self.max_train_iter > 0 and total_iter > self.max_train_iter:
                     break
                 
@@ -242,6 +255,7 @@ class RewardModelTrainer(ABC):
                 if self.args.verbose:
                     print("3 flat_grad", grads[:10], grads.shape)
                 
+                current_damping = self.get_current_damping()
                 if self.args.use_hvp:
                     update_direction = self.conjugate_gradient_solver(
                         params, loss, grads, max_iter=self.cg_max_steps
@@ -258,6 +272,7 @@ class RewardModelTrainer(ABC):
                 
                 if self.args.verbose:
                     print("4 update_direction", update_direction.shape)
+                    print("4.1 current_damping", current_damping)
                 
                 # Update model
                 if self.args.use_optimizer:
@@ -297,6 +312,7 @@ class RewardModelTrainer(ABC):
                     "loss_mean"    : loss_mean,
                     "acc_mean"     : acc_mean,
                     "lr": self.scheduler.get_last_lr()[0],
+                    "current_damping": current_damping,
                 }
                 # if self.aux_loss:
                 #     logs_dict["aux_loss"] = aux_loss.item()
@@ -484,3 +500,27 @@ class RewardModelTrainer(ABC):
         aux_loss = output.aux_loss if "aux_loss" in output else []
         
         return chosen_rewards, rejected_rewards, aux_loss
+    
+    def get_current_damping(self) -> float:
+        base_damping = self.cg_damping
+        t = self.total_steps / self.total_T
+        if self.damping_growth_rate > 1.0:
+            t = self.total_steps / self.damping_growth_rate
+        
+        if self.damping_strategy == "constant":
+            return 1.0 if t >= 1.0 else base_damping
+        
+        elif self.damping_strategy == "linear":
+            return min((1.0 - base_damping) * t + base_damping, 1.0)
+        
+        elif self.damping_strategy == "log":
+            return min(base_damping * (1 + np.log(1 + t)), 1.0)
+        
+        elif self.damping_strategy == "square":
+            return min(base_damping * (1 + t ** 2), 1.0)
+        
+        elif self.damping_strategy == "cosine":
+            return min(base_damping * (2 - np.cos(np.pi * t)), 1.0)
+        
+        else:
+            return base_damping

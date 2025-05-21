@@ -7,8 +7,7 @@ from transformers.trainer import get_scheduler
 
 from openrlhf.datasets import RewardDataset
 from openrlhf.models import get_llm_for_sequence_regression
-from openrlhf.trainer.rm_trainer_hvp import RewardModelTrainer as RewardModelTrainer_hvp
-from openrlhf.trainer import RewardModelTrainer
+from openrlhf.trainer.rm_trainer_head_hvp import RewardModelTrainer
 from openrlhf.utils import blending_online_datasets, get_strategy, get_tokenizer
 
 
@@ -100,11 +99,10 @@ def train(args):
     
     # scheduler
     scheduler = get_scheduler(
-        "cosine_with_min_lr",
+        "constant",
         optim,
-        num_warmup_steps=math.ceil(max_steps * args.lr_warmup_ratio),
+        num_warmup_steps=0,
         num_training_steps=max_steps,
-        scheduler_specific_kwargs={"min_lr": args.learning_rate * 0.1},
     )
     
     # gradient_checkpointing
@@ -130,35 +128,23 @@ def train(args):
     
     # batch_size here is micro_batch_size * 2
     # we use merged chosen + rejected response forward
-    if args.use_hvp:
-        trainer = RewardModelTrainer_hvp(
-            model=model,
-            strategy=strategy,
-            optim=optim,
-            tokenizer=tokenizer,
-            train_dataloader=train_dataloader,
-            eval_dataloader=eval_dataloader,
-            scheduler=scheduler,
-            max_norm=args.max_norm,
-            max_epochs=args.max_epochs,
-            loss=args.loss,
-            cg_damping=args.damping,
-            cg_max_steps=args.num_cg_steps,
-            max_train_iter=args.max_train_iter
-        )
-    else:
-        trainer = RewardModelTrainer(
-            model=model,
-            strategy=strategy,
-            optim=optim,
-            tokenizer=tokenizer,
-            train_dataloader=train_dataloader,
-            eval_dataloader=eval_dataloader,
-            scheduler=scheduler,
-            max_norm=args.max_norm,
-            max_epochs=args.max_epochs,
-            loss=args.loss
-        )
+    trainer = RewardModelTrainer(
+        model=model,
+        strategy=strategy,
+        optim=optim,
+        tokenizer=tokenizer,
+        train_dataloader=train_dataloader,
+        eval_dataloader=eval_dataloader,
+        scheduler=scheduler,
+        max_norm=args.max_norm,
+        max_epochs=args.max_epochs,
+        loss=args.loss,
+        cg_damping=args.damping,
+        cg_max_steps=args.num_cg_steps,
+        damping_strategy=args.damping_strategy,
+        damping_growth_rate=args.damping_growth_rate,
+        max_train_iter=args.max_train_iter,
+    )
     
     trainer.fit(args, consumed_samples, num_update_steps_per_epoch)
     
@@ -270,9 +256,12 @@ if __name__ == "__main__":
     # HVP parameters
     parser.add_argument("--use_hvp", action="store_true", default=False, help="Use HVP update")
     parser.add_argument("--use_optimizer", action="store_true", default=False, help="Use Adam optimizer to update")
-    parser.add_argument("--damping", type=float, default=0.01, help="Damping coefficient for HVP")
-    parser.add_argument("--num_cg_steps", type=int, default=10, help="Number of conjugate gradient steps")
-    
+    parser.add_argument("--damping", type=float, default=0.8, help="Base damping coefficient for HVP")
+    parser.add_argument("--damping_strategy", type=str, choices=["", "constant", "log", "linear", "square", "cosine"], default="linear",
+                        help="Strategy for selecting damping coefficient")
+    parser.add_argument("--damping_growth_rate", type=float, default=100.0,
+                        help="Growth rate for damping strategies.")
+    parser.add_argument("--num_cg_steps", type=int, default=3, help="Number of conjugate gradient steps")
     # Online RLHF parameters (total_T, current_t)
     parser.add_argument("--total_T", type=int, default=10, help="Total number of steps")
     parser.add_argument("--current_t", type=int, default=0, help="Current step")

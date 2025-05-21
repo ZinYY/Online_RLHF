@@ -103,6 +103,8 @@ class RewardModelTrainer(ABC):
             os.makedirs(self.strategy.args.use_tensorboard, exist_ok=True)
             log_dir = os.path.join(self.strategy.args.use_tensorboard, strategy.args.wandb_run_name)
             self._tensorboard = SummaryWriter(log_dir=log_dir)
+        
+        self.max_kappa = 0.0  # Track maximum kappa value
     
     def fit(self, args, consumed_samples=0, num_update_steps_per_epoch=None):
         # get eval and save steps
@@ -177,7 +179,12 @@ class RewardModelTrainer(ABC):
                 acc = (chosen_reward > reject_reward).float().mean().item()
                 acc_mean = acc_mean * 0.9 + 0.1 * acc
                 loss_mean = loss_mean * 0.9 + 0.1 * preference_loss.item()
-                # optional rm info
+                
+                # Compute kappa
+                kappa = self.compute_kappa(chosen_reward, reject_reward)
+                self.max_kappa = max(self.max_kappa, kappa)
+                
+                # Add kappa to logs
                 logs_dict = {
                     "loss"         : preference_loss.item(),
                     "acc"          : acc,
@@ -186,6 +193,8 @@ class RewardModelTrainer(ABC):
                     "loss_mean"    : loss_mean,
                     "acc_mean"     : acc_mean,
                     "lr"           : self.scheduler.get_last_lr()[0],
+                    "kappa"    : kappa,
+                    "max_kappa": self.max_kappa,
                 }
                 if self.aux_loss:
                     logs_dict["aux_loss"] = aux_loss.item()
@@ -200,6 +209,11 @@ class RewardModelTrainer(ABC):
                     global_step = step // self.strategy.accumulated_gradient
                     client_states = {"consumed_samples": global_step * args.train_batch_size}
                     self.save_logs_and_checkpoints(args, global_step, step_bar, logs_dict, client_states)
+                
+                # Print max kappa in blue every logging_steps
+                if step % args.logging_steps == 0:
+                    if self.strategy.is_rank_0():
+                        print(f"\033[94mMax κ: {self.max_kappa:.4f}\033[0m")
                 
                 step += 1
             epoch_bar.update()
@@ -373,3 +387,18 @@ class RewardModelTrainer(ABC):
         aux_loss = output.aux_loss if "aux_loss" in output else []
         
         return chosen_rewards, rejected_rewards, aux_loss
+    
+    def compute_kappa(self, chosen_reward, reject_reward):
+        """Compute non-linearity coefficient kappa."""
+        # Get the logits difference
+        logits_diff = chosen_reward - reject_reward
+        
+        # Compute sigmoid
+        probs = torch.sigmoid(logits_diff)
+        
+        # Compute sigmoid derivative: σ'(w) = σ(w)(1-σ(w))
+        sigmoid_derivative = probs * (1 - probs)
+        
+        # Compute kappa as 1 / min(σ'(w))
+        kappa = 1.0 / (torch.min(sigmoid_derivative).item() + 1e-3)
+        return kappa
