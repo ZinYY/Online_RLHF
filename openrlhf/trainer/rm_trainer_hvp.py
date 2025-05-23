@@ -98,7 +98,6 @@ class RewardModelTrainer(ABC):
     
     def hessian_vector_product(self, params: List[nn.Parameter], loss: torch.Tensor,
                                flat_vector: torch.Tensor, flat_grad) -> torch.Tensor:
-        # 再次使用 DeepSpeed ZeRO 收集参数
         with deepspeed.zero.GatheredParameters(params, modifier_rank=0):
             with torch.enable_grad():
                
@@ -108,7 +107,6 @@ class RewardModelTrainer(ABC):
                 hvp = torch.autograd.grad(grad_vector_prod, params, retain_graph=True)
                 flat_hvp = torch.cat([g.reshape(-1).detach().clone() for g in hvp if g is not None])
         
-        # 确保所有中间结果都被清理
         del flat_grad, grad_vector_prod, hvp
         for param in params:
             if param.grad is not None:

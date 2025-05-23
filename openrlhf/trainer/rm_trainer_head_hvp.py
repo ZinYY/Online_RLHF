@@ -387,7 +387,6 @@ class RewardModelTrainer(ABC):
                     client_states = {"consumed_samples": global_step * args.train_batch_size}
                     self.save_logs_and_checkpoints(args, global_step, step_bar, logs_dict, client_states)
                     
-                    # 打印最大kappa
                     if self.strategy.is_rank_0():
                         print(f"\033[94mMax κ: {self.max_kappa:.4f}\033[0m")
                 

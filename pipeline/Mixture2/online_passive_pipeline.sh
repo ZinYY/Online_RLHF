@@ -4,7 +4,7 @@ export HUGGINGFACE_TOKEN=hf_xxxxxxxxxxxxx
 #get GPUs:
 gpu_model=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits)
 if echo "$gpu_model" | grep -i "A800" > /dev/null; then
-   # 如果显卡是 A800 (1, 3号卡坏了，屏蔽)
+
    gpu_nodes="0,2,3,4"
    train_batch_size=4
 else
@@ -40,7 +40,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 27010 --module openrlhf.c
 #get GPUs:
 gpu_model=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits)
 if echo "$gpu_model" | grep -i "A800" > /dev/null; then
-    # 如果显卡是 A800 (1, 3号卡坏了，屏蔽)
+
     gpu_nodes="0,2,3,4"
     train_batch_size=32
 else
@@ -78,7 +78,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 27109 --module openrlhf.c
 #get GPUs:
 gpu_model=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits)
 if echo "$gpu_model" | grep -i "A800" > /dev/null; then
-    # 如果显卡是 A800 (1, 3号卡坏了，屏蔽)
+
     gpu_nodes="0,2,3,4"
     train_batch_size=32
 else
@@ -125,7 +125,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 29319 --module openrlhf.c
 #get GPUs:
 gpu_model=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits)
 if echo "$gpu_model" | grep -i "A800" > /dev/null; then
-    # 如果显卡是 A800 (1, 3号卡坏了，屏蔽)
+
     gpu_nodes="3"
     train_batch_size=32
 else
@@ -170,7 +170,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 27229 --module openrlhf.c
 #get GPUs:
 gpu_model=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits)
 if echo "$gpu_model" | grep -i "A800" > /dev/null; then
-    # 如果显卡是 A800 (1, 3号卡坏了，屏蔽)
+
     gpu_nodes="4"
     train_batch_size=32
 else
@@ -214,7 +214,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 29123 --module openrlhf.c
 #get GPUs:
 gpu_model=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits)
 if echo "$gpu_model" | grep -i "A800" > /dev/null; then
-    # 如果显卡是 A800 (1, 3号卡坏了，屏蔽)
+
     gpu_nodes="0,2,3,4"
     train_batch_size=4
 else
@@ -252,7 +252,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 27109 --module openrlhf.c
 #get GPUs:
 gpu_model=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits)
 if echo "$gpu_model" | grep -i "A800" > /dev/null; then
-    # 如果显卡是 A800 (1, 3号卡坏了，屏蔽)
+
     gpu_nodes="0,2,3,4"
     train_batch_size=4
 else
