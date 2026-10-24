@@ -1,4 +1,4 @@
-# Online RLHF Pipeline: A Pytorch Implementation
+# Online RLHF Pipeline: A PyTorch Implementation
 
 A PyTorch implementation of the NeurIPS'25 paper "Provably Efficient Online RLHF with One-Pass Reward Modeling". This repository provides a flexible and modular approach to Online Reinforcement Learning from Human Feedback (Online RLHF).
 
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 ### For the Passive Stage:
 
-1. you should first run SFT to get the initial reward model's checkpoint,
+1. First, run SFT to obtain the policy checkpoint used to initialize reward-model training in the examples below,
 
 ```bash
 export gpu_nodes="0,1,2,3"
@@ -53,7 +53,7 @@ deepspeed --include=localhost:$gpu_nodes --master_port 27010 --module openrlhf.c
     --train_split train_sft \
     --input_key prompt \
     --output_key messages/-1/content \
-    --train_batch_size 4
+    --train_batch_size 4 \
     --max_samples 50000 \
     --pretrain meta-llama/Meta-Llama-3-8B-Instruct \
     --save_path ./checkpoint_ultraFB/llama3-8b-sft \
@@ -152,7 +152,7 @@ python pipeline/Ultrafeedback/llama/online_deployment_ultrafeedback_llama.py \
     --rm_type hvp \
     --rm_strategy best_worst \
     --total_T 50 \
-    --stop_T 20
+    --stop_t 20
 
 ```
 
@@ -166,7 +166,6 @@ python pipeline/Ultrafeedback/llama/online_deployment_ultrafeedback_llama.py \
 │ └── utils/ # Utility functions
 ├── pipeline/
 │ └── Different scripts of RLHF pipeline
-├── plot/ # Visualization tools
 └── requirements.txt # Dependencies
 
 ```
@@ -181,6 +180,12 @@ python pipeline/Ultrafeedback/llama/online_deployment_ultrafeedback_llama.py \
 -   wandb
 -   And more (see requirements.txt)
 
+Note: the training commands above additionally rely on components such as DeepSpeed and FlashAttention. `requirements.txt` is not a complete, pinned training environment, so installing it alone may not be sufficient to reproduce training.
+
+## 🧪 CPU Tests
+
+CPU tests characterize the legacy reward-model numerics (HVP, conjugate gradient, damping schedules and selection helpers) and separately test the real argparse blocks of five HVP CLI entries. They do not start full CLI modules or verify training integration. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks, [environment.md](docs/maintenance/environment.md) for local and historical CI evidence, and [review.md](docs/maintenance/review.md) for scope and pending algorithm decisions. Direct HVP CLIs accept `--cg_mixing_weight`; pipeline wrappers do not forward it. A zero weight controls solver mixing but does not bypass the head trainer's schedule gate.
+
 ## 🎛 Configuration Options
 
 -   `--method`: Choose between 'ppo' or 'dpo'
@@ -191,7 +196,7 @@ python pipeline/Ultrafeedback/llama/online_deployment_ultrafeedback_llama.py \
 -   `--stop_t`: Stopping iteration
 
 
-## 📖 Ciatation
+## 📖 Citation
 
 If you find this repository useful, please consider citing our paper:
 

@@ -1,0 +1,9 @@
+# Ruff configuration for the new maintenance code (tests/ only).
+# Scope is limited on purpose: production code under openrlhf/ and pipeline/
+# keeps its existing style and is NOT linted or reformatted this round.
+
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # line length follows the existing project style

@@ -1,0 +1,10 @@
+# Standalone CPU test dependencies for tests/cpu (isolated from the training
+# environment; do NOT install the repository root requirements.txt here).
+# Verified on CPython 3.12 / Linux x86_64; see docs/maintenance/environment.md.
+#
+# torch must come from the CPU wheel index:
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1
+numpy==2.5.3
+pytest==9.1.1
+tqdm==4.70.0
