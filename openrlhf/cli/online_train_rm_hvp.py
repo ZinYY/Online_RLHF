@@ -262,6 +262,11 @@ if __name__ == "__main__":
     parser.add_argument("--damping_growth_rate", type=float, default=100.0,
                         help="Growth rate for damping strategies.")
     parser.add_argument("--num_cg_steps", type=int, default=3, help="Number of conjugate gradient steps")
+    parser.add_argument("--cg_mixing_weight", type=float, default=None,
+                        help="Weight mixing the CG direction with the raw gradient: "
+                             "x = w * grad + (1 - w) * x_cg (applied when num_cg_steps > 1). "
+                             "Defaults to --damping for backward compatibility; "
+                             "pass 0.0 for the pure CG direction.")
     # Online RLHF parameters (total_T, current_t)
     parser.add_argument("--total_T", type=int, default=10, help="Total number of steps")
     parser.add_argument("--current_t", type=int, default=0, help="Current step")
@@ -271,6 +276,12 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", action="store_true", default=False, help="Enable verbose logging")
     
     args = parser.parse_args()
+
+    # --cg_mixing_weight defaults to --damping (its historical double duty).
+    # Explicit None check: 0.0 is a legal value and must not fall back.
+    args.cg_mixing_weight = (
+        args.cg_mixing_weight if args.cg_mixing_weight is not None else args.damping
+    )
     
     if args.input_template and "{}" not in args.input_template:
         print("[Warning] {} not in args.input_template, set to None")

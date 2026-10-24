@@ -1,0 +1,64 @@
+name: cpu-checks
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  # CPU-only, no model-service online access.
+  OMP_NUM_THREADS: "2"
+  MKL_NUM_THREADS: "2"
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+
+jobs:
+  lint:
+    name: Lint new maintenance code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install lint tools
+        run: pip install -r requirements/lint.txt
+      - name: Check lint dependencies and versions
+        run: |
+          python -m pip check
+          python --version
+          ruff --version
+      - name: Ruff check (tests only)
+        run: ruff check tests/
+      - name: Ruff format check (tests only)
+        run: ruff format --check tests/
+
+  cpu-tests:
+    name: CPU pytest (isolated from training stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install CPU-only torch
+        run: pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - name: Install standalone test dependencies
+        run: pip install -r requirements/cpu-test.txt
+      - name: Check CPU dependencies and versions
+        run: |
+          python -m pip check
+          python -c "import sys, torch, numpy, pytest, tqdm; print(sys.version); print({m.__name__: m.__version__ for m in (torch, numpy, pytest, tqdm)})"
+      - name: Run CPU tests
+        # Current fix branch: no failures, unexpected skips or xfails.
+        run: python -m pytest tests/cpu -q -ra --strict-markers

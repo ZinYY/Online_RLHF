@@ -1,0 +1,3 @@
+# Standalone lint tools for the maintenance round (tests/ only).
+# Pinned to the version verified locally; see docs/maintenance/environment.md.
+ruff==0.16.7

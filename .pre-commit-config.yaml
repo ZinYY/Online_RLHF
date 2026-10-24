@@ -1,0 +1,28 @@
+# Pre-commit hooks for the maintenance round.
+# Scope is limited to the new maintenance code (tests/); production code under
+# openrlhf/ and pipeline/ is intentionally NOT linted or reformatted.
+#
+# Local (system) hooks are used instead of a remote mirror so the hooks run
+# offline; install the pinned tools first:
+#   source /path/to/lint-venv/bin/activate
+#   python -m pip install -r requirements/lint.txt
+# System hooks resolve ruff through PATH; an absolute pre-commit path alone
+# does not select the intended ruff.
+#   pre-commit install        # writes .git/hooks — a user-run step
+# The ruff version must stay in sync with requirements/lint.txt (CI uses that
+# same pin).
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff check (pinned via requirements/lint.txt)
+        entry: ruff check --fix
+        language: system
+        files: ^tests/
+        types: [python]
+      - id: ruff-format
+        name: ruff format (pinned via requirements/lint.txt)
+        entry: ruff format --check
+        language: system
+        files: ^tests/
+        types: [python]

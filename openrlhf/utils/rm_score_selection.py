@@ -5,17 +5,20 @@ import torch
 # Global V matrix for APO score calculation
 _global_V = None
 
-def one_step_fisher_score(chosen_reward, reject_reward, chosen_embeddings, rejected_embeddings, margin=None):
-    """Compute the importance score for a sample based on Fisher Information Matrix.
-    For the last layer (value head) with sigmoid activation, we can compute the Fisher
-    Information Matrix directly without computing gradients.
+def one_step_embedding_l2_score(chosen_reward, reject_reward, chosen_embeddings, rejected_embeddings, margin=None):
+    """Compute the importance score as the squared L2 distance between the
+    chosen and rejected embeddings.
+
+    Note: previously named one_step_fisher_score; the implementation never
+    used the Fisher Information Matrix — it is the squared embedding
+    difference.
 
     Args:
-        chosen_reward: Reward values for the chosen responses in a batch
-        reject_reward: Reward values for the rejected responses in a batch
+        chosen_reward: Reward values for the chosen responses in a batch (not used)
+        reject_reward: Reward values for the rejected responses in a batch (not used)
         chosen_embeddings: Embeddings for the chosen responses in a batch
         rejected_embeddings: Embeddings for the rejected responses in a batch
-        margin: Optional margin values for the loss function
+        margin: Optional margin values for the loss function (not used)
 
     Returns:
         scores: The importance scores for the batch of samples
@@ -26,12 +29,16 @@ def one_step_fisher_score(chosen_reward, reject_reward, chosen_embeddings, rejec
         for c_emb, r_emb in zip(chosen_embeddings, rejected_embeddings):
             # Compute embedding difference
             diff = (c_emb - r_emb).reshape(-1)
-            
+
             # Compute score as embedding difference magnitude
             score = torch.dot(diff, diff)  # L2 norm squared of the difference
             scores.append(score.item())
-        
+
         return torch.tensor(scores)
+
+
+# Deprecated alias kept for backward compatibility; use one_step_embedding_l2_score.
+one_step_fisher_score = one_step_embedding_l2_score
 
 
 def reward_diff_score(chosen_reward, reject_reward, chosen_embeddings, rejected_embeddings, margin=None):
@@ -146,17 +153,19 @@ def get_score_fn(score_type: str):
 
     Args:
         score_type: The type of scoring function to use.
-            Options: "fisher", "reward_diff", "margin", "random", "apo"
+            Options: "fisher", "reward_diff", "margin", "random", "apo",
+            "uncertainty_score" ("apo" is an alias of "uncertainty_score")
 
     Returns:
         The corresponding scoring function
     """
     score_fns = {
-        "fisher": one_step_fisher_score,
+        "fisher": one_step_embedding_l2_score,
         "reward_diff": reward_diff_score,
         "margin": margin_based_score,
         "random": random_score,
         "uncertainty_score": uncertainty_score,
+        "apo": uncertainty_score,
     }
     # print with red:
     print(f"\033[91mScore type: {score_type}. Available options: {list(score_fns.keys())}\033[0m")

@@ -292,6 +292,11 @@ if __name__ == "__main__":
     parser.add_argument("--damping_growth_rate", type=float, default=100.0,
                         help="Growth rate for damping strategies.")
     parser.add_argument("--num_cg_steps", type=int, default=3, help="Number of conjugate gradient steps")
+    parser.add_argument("--cg_mixing_weight", type=float, default=None,
+                        help="Weight mixing the CG direction with the raw gradient: "
+                             "x = w * grad + (1 - w) * x_cg (applied when num_cg_steps > 1). "
+                             "Defaults to --damping for backward compatibility; "
+                             "pass 0.0 for the pure CG direction.")
     parser.add_argument("--momentum_beta1", type=float, default=0.9, help="Beta1 coefficient for momentum")
     parser.add_argument("--momentum_beta2", type=float, default=0.999, help="Beta2 coefficient for second moment")
     parser.add_argument("--momentum_eps", type=float, default=1e-8, help="Epsilon for Adam-style update")
@@ -302,6 +307,12 @@ if __name__ == "__main__":
     parser.add_argument("--max_train_iter", type=int, default=-1, help="Maximum number of training iterations")
     
     args = parser.parse_args()
+
+    # --cg_mixing_weight defaults to --damping (its historical double duty).
+    # Explicit None check: 0.0 is a legal value and must not fall back.
+    args.cg_mixing_weight = (
+        args.cg_mixing_weight if args.cg_mixing_weight is not None else args.damping
+    )
     
     if args.input_template and "{}" not in args.input_template:
         print("[Warning] {} not in args.input_template, set to None")
